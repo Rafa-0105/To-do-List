@@ -10,8 +10,15 @@ api = Api(app, title='ToDo List API', version='1.0', description='API de Tarefas
 
 ns = Namespace('tasks', description='Operações de Tarefas')
 
+update_ns = Namespace('update')
+
 create_task = ns.model('Task', {
     'task_name': fields.String(required=True, description='Nome da tarefa')
+})
+
+update_task = update_ns.model('update', {
+    'update_task': fields.String(required=True, description='Atualizar nome da Task'),
+    'id': fields.String(required=True, description='Passar o id da tarefa para atualizar')
 })
 
 @ns.route("/get_task") 
@@ -23,7 +30,7 @@ class ApiGet(Resource):
             
         try:
             with engine.connect() as connection:
-                result = connection.execute(text("SELECT id, name_task FROM to_do_list"))
+                result = connection.execute(text("SELECT * FROM to_do_list"))
                 data = [{"id": row[0], "name": row[1]} for row in result]
                 
                 return {
@@ -69,7 +76,35 @@ class CreateTask(Resource):
             return {"error": f"Erro ao inserir: {str(e)}"}, 500
 
 
+@update_ns.route('/update_task')
+class UpdateTask(Resource):
+    @update_ns.expect(update_task, validate=True)
+    def put(self):
+        payload = update_ns.payload
+        task_id = payload.get('id')
+        new_task_name = payload.get('update_task')
+
+        engine = conn()
+
+        try:
+            with engine.connect() as connection:
+                query = text("""
+                    UPDATE public.to_do_list
+                    SET name_task = :name
+                    WHERE id = :id
+                """)                
+                connection.execute(query, {
+                    "id": task_id, 
+                    "name": new_task_name
+                })
+                connection.commit()
+            
+            return {'message': 'Tarefa criada com sucesso!', 'id': task_id, 'Tarefa' : new_task_name}, 200
+
+        except Exception as e:
+            return {"error": f"Erro ao inserir: {str(e)}"}, 500
 api.add_namespace(ns)
+api.add_namespace(update_ns)
 
 if __name__ == '__main__':
     app.run(debug=True)
