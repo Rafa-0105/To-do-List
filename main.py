@@ -1,4 +1,4 @@
-from routes.get.method_get import app
+from routes.app.methods import app
 
 
 if __name__ == '__main__':
