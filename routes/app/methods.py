@@ -7,34 +7,32 @@ from flask import Flask
 from flask_restx import Api, Resource, Namespace, fields
 
 app = Flask(__name__)
-api = Api(app, title='ToDo List API', version='1.0', description='API de Tarefas')
-
-ns = Namespace('tasks', description='Operações de Tarefas')
+api = Api(app, title='To Do List API', version='1.3', description='Task API')
 
 create_ns = Namespace('create')
 update_ns = Namespace('update')
 delete_ns = Namespace('delete')
-select_ns = Namespace('select_task')
+select_ns = Namespace('task')
 
 create_task = create_ns.model('create', {
-    'task_name': fields.String(required=True, description='Nome da tarefa')
+    'task_name': fields.String(required=True, description='Name Task')
 })
 
 update_task = update_ns.model('update', {
-    'update_task': fields.String(required=True, description='Atualizar nome da Task'),
-    'id': fields.String(required=True, description='Passar o id da tarefa para atualizar')
+    'update_task': fields.String(required=True, description='Update name task'),
+    'id': fields.String(required=True, description='Pass ID to update task')
 })
 
 delete_task = delete_ns.model('delete', {
-    'id': fields.String(required=True, description='Passar o id da Tarefa para apagar.')
+    'id': fields.String(required=True, description='Pass ID to delete task')
 })
 
-@ns.route("/get_task") 
+@select_ns.route("/get_task") 
 class ApiGet(Resource):
     def get(self):
         engine = conn()
         if not engine:
-            return {"error": "Falha na conexão com o BD"}, 500
+            return {"error": "Erro to connection to BD"}, 500
             
         try:
             with engine.connect() as connection:
@@ -56,9 +54,9 @@ class CreateTask(Resource):
     def post(self):
         engine = conn()
         if not engine:
-            return {"error": "Falha na conexão com o BD"}, 500
+            return {"error": "Erro to connection to BD"}, 500
         
-        payload = ns.payload
+        payload = create_ns.payload
         name_task_input = payload.get('task_name')
         
         new_id = str(uuid.uuid4())
@@ -78,10 +76,10 @@ class CreateTask(Resource):
                 })
                 connection.commit()
             
-            return {'message': 'Tarefa criada com sucesso!', 'id': new_id, 'Tarefa' : name_task_input}, 201
+            return {'message': 'Task successfully created', 'id': new_id, 'Tarefa' : name_task_input}, 201
 
         except Exception as e:
-            return {"error": f"Erro ao inserir: {str(e)}"}, 500
+            return {"error": f"Error to insert: {str(e)}"}, 500
 
 
 @update_ns.route('/update_task')
@@ -107,10 +105,10 @@ class UpdateTask(Resource):
                 })
                 connection.commit()
             
-            return {'message': 'Tarefa criada com sucesso!', 'id': task_id, 'Tarefa' : new_task_name}, 200
+            return {'message': 'Task successfully updated', 'id': task_id, 'Tarefa' : new_task_name}, 200
 
         except Exception as e:
-            return {"error": f"Erro ao inserir: {str(e)}"}, 500
+            return {"error": f"Error to insert : {str(e)}"}, 500
         
 @delete_ns.route('/delete_task')
 class DeleteTask(Resource):
@@ -132,11 +130,11 @@ class DeleteTask(Resource):
                     "id": task_id
                 })
                 connection.commit()
-            return {'message': 'Tarefa excluida com sucesso!', 'id': task_id}, 200
+            return {'message': 'Task successfully deleted!', 'id': task_id}, 200
         except Exception as e:
-            return {"error": f"Erro ao excluir: {str(e)}"}, 500
+            return {"error": f"Error to delete: {str(e)}"}, 500
 
-api.add_namespace(ns)
+api.add_namespace(select_ns)
 api.add_namespace(update_ns)
 api.add_namespace(delete_ns)
 api.add_namespace(create_ns)
