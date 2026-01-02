@@ -1,4 +1,5 @@
 import uuid
+from uuid import UUID
 from datetime import date
 from sqlalchemy import text
 from DB.conection import conn
@@ -10,15 +11,22 @@ api = Api(app, title='ToDo List API', version='1.0', description='API de Tarefas
 
 ns = Namespace('tasks', description='Operações de Tarefas')
 
+create_ns = Namespace('create')
 update_ns = Namespace('update')
+delete_ns = Namespace('delete')
+select_ns = Namespace('select_task')
 
-create_task = ns.model('Task', {
+create_task = create_ns.model('create', {
     'task_name': fields.String(required=True, description='Nome da tarefa')
 })
 
 update_task = update_ns.model('update', {
     'update_task': fields.String(required=True, description='Atualizar nome da Task'),
     'id': fields.String(required=True, description='Passar o id da tarefa para atualizar')
+})
+
+delete_task = delete_ns.model('delete', {
+    'id': fields.String(required=True, description='Passar o id da Tarefa para apagar.')
 })
 
 @ns.route("/get_task") 
@@ -31,7 +39,7 @@ class ApiGet(Resource):
         try:
             with engine.connect() as connection:
                 result = connection.execute(text("SELECT * FROM to_do_list"))
-                data = [{"id": row[0], "name": row[1]} for row in result]
+                data = [{"id": str(row[0]), "name": row[1]} for row in result]
                 
                 return {
                     "success": True,
@@ -42,9 +50,9 @@ class ApiGet(Resource):
         except Exception as e:
             return {"error": str(e)}, 500
 
-@ns.route('/create_task')
+@create_ns.route('/create_task')
 class CreateTask(Resource):
-    @ns.expect(create_task, validate=True)
+    @create_ns.expect(create_task, validate=True)
     def post(self):
         engine = conn()
         if not engine:
@@ -103,8 +111,35 @@ class UpdateTask(Resource):
 
         except Exception as e:
             return {"error": f"Erro ao inserir: {str(e)}"}, 500
+        
+@delete_ns.route('/delete_task')
+class DeleteTask(Resource):
+    @delete_ns.expect(delete_task, validate=True)
+    def delete(self):
+        payload = delete_ns.payload
+        task_id = payload.get('id')
+        print(task_id)
+
+        engine = conn()
+
+        try:
+            with engine.connect() as connection:
+                query = text("""
+                    DELETE FROM public.to_do_list
+                    WHERE id = :id
+                """)
+                connection.execute(query, {
+                    "id": task_id
+                })
+                connection.commit()
+            return {'message': 'Tarefa excluida com sucesso!', 'id': task_id}, 200
+        except Exception as e:
+            return {"error": f"Erro ao excluir: {str(e)}"}, 500
+
 api.add_namespace(ns)
 api.add_namespace(update_ns)
+api.add_namespace(delete_ns)
+api.add_namespace(create_ns)
 
 if __name__ == '__main__':
     app.run(debug=True)
